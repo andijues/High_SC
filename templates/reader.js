@@ -1,0 +1,18 @@
+
+(()=>{'use strict';
+const body=document.body,search=document.querySelector('#search'),status=document.querySelector('#search-status');
+const pairs=[...document.querySelectorAll('.pair')],sections=[...document.querySelectorAll('.paper-section')];
+const searchStrings=new Map(pairs.map(el=>[el,el.textContent.toLocaleLowerCase()]));
+function filter(){const q=search.value.trim().toLocaleLowerCase();let found=0;for(const el of pairs){const match=!q||searchStrings.get(el).includes(q);el.classList.toggle('hidden',!match);if(match)found++}for(const sec of sections){const any=[...sec.querySelectorAll('.pair')].some(el=>!el.classList.contains('hidden'));sec.classList.toggle('hidden',!any);sec.querySelectorAll('.subheading').forEach(h=>{let n=h.nextElementSibling,visible=false;while(n&&!n.matches('h3')){if(n.classList.contains('pair')&&!n.classList.contains('hidden'))visible=true;n=n.nextElementSibling}h.classList.toggle('hidden',!visible)})}document.querySelector('#empty-message').classList.toggle('hidden',found>0);status.textContent=q?`${found} 处匹配`:'';}
+search.addEventListener('input',filter);
+for(const b of document.querySelectorAll('[data-dimension]'))b.addEventListener('click',()=>{const active=b.getAttribute('aria-pressed')==='true';b.setAttribute('aria-pressed',String(!active));body.classList.toggle('dim-'+b.dataset.dimension,active)});
+for(const [id,cls] of [['toggle-translation','hide-translations'],['toggle-notes','hide-notes']])document.querySelector('#'+id).addEventListener('click',e=>{const hide=!body.classList.contains(cls);body.classList.toggle(cls,hide);e.currentTarget.setAttribute('aria-pressed',String(!hide))});
+document.querySelector('#print').addEventListener('click',()=>window.print());
+function route(){const hash=decodeURIComponent(location.hash);if(!hash)return;if(hash.startsWith('#ref-'))document.querySelector('#reference-details').open=true;const el=document.getElementById(hash.slice(1));if(el&&el.closest('.hidden')){search.value='';filter()}if(el)requestAnimationFrame(()=>el.scrollIntoView({block:'start',behavior:'instant'}));}
+window.addEventListener('hashchange',route);if(location.hash)route();
+for(const a of document.querySelectorAll('.section-nav a'))a.addEventListener('click',()=>{if(search.value){search.value='';filter()}});
+const links=[...document.querySelectorAll('.section-nav a')],visibleSections=new Set();function activate(id){for(const a of links){if(a.hash==='#'+id)a.setAttribute('aria-current','true');else a.removeAttribute('aria-current')}}const observer=new IntersectionObserver(entries=>{for(const e of entries){if(e.isIntersecting)visibleSections.add(e.target);else visibleSections.delete(e.target)}const visible=[...visibleSections].sort((a,b)=>a.getBoundingClientRect().top-b.getBoundingClientRect().top);if(visible.length)activate(visible[0].id)},{rootMargin:'-65px 0px -65% 0px',threshold:0});document.querySelectorAll('.paper-section,.argument-overview,.references').forEach(s=>observer.observe(s));links.forEach(a=>a.addEventListener('click',()=>activate(a.hash.slice(1))));
+const dialog=document.querySelector('#image-dialog'),zoom=document.querySelector('#zoom-image'),caption=document.querySelector('#zoom-caption');let opener=null;
+for(const b of document.querySelectorAll('.figure-open'))b.addEventListener('click',()=>{opener=b;const img=b.querySelector('img');zoom.src=img.src;zoom.alt=img.alt;caption.textContent=b.closest('figure').querySelector('.para-meta').textContent;dialog.showModal()});
+document.querySelector('#close-dialog').addEventListener('click',()=>dialog.close());dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close()});dialog.addEventListener('close',()=>{zoom.removeAttribute('src');if(opener)opener.focus()});
+})();

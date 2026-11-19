@@ -1,0 +1,10 @@
+{
+  "name": "high-sc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Optional browser checks for the local High_SC application",
+  "scripts": {"test:browser": "node tests/browser_check.cjs"},
+  "devDependencies": {"playwright": "1.62.1"},
+  "engines": {"node": ">=20"},
+  "license": "AGPL-3.0-only"
+}

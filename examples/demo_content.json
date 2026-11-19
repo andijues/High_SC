@@ -1,0 +1,46 @@
+{
+  "title": "From Completion to Verification: An Illustrative Argument",
+  "sections": [
+    {
+      "en": "1. The Problem", "zh": "问题的提出", "logic": "从完成状态与真实目标之间的差距引出研究问题。",
+      "paragraphs": [
+        {"en": "A workflow can finish without satisfying its user's goal. A report generator, for example, may produce a readable file while omitting the requested comparison. We call this gap semantic incompleteness: the artifact exists, but its meaning does not meet the task. This original teaching example develops a conceptual argument; it reports no empirical experiment.",
+         "note": {"zh": "工作流程即使执行完毕，也可能没有实现用户的目标。例如，报告生成器虽然交付了可读文件，却漏掉用户要求的比较。本文将这种差距称为“语义不完整”：产物已经存在，其内容却没有满足任务要求。以下为自制教学文本，通过概念分析展示论证过程，不报告任何实证实验。", "function": "引出问题并界定概念", "logic": "先区分执行完成与目标达成，再为后续的语义检查主张建立问题基础。", "critique": "用报告生成的反例说明现有完成标准可能不足。反例可以否定“完成必然成功”，却无法证明此类失败的普遍程度。", "tone": "term", "highlights": [{"category":"term","quote":"semantic incompleteness"},{"category":"method","quote":"it reports no empirical experiment"}]}},
+        {"en": "The central claim is that a workflow should verify explicit user requirements before declaring success. Verification should inspect the final artifact as well as the process that produced it. This proposal concerns the definition of success; whether it improves outcomes remains an empirical question.",
+         "note": {"zh": "本文的核心主张是：工作流程在宣布成功之前，应当核对用户明确提出的要求。核查既应关注最终产物，也应关注生成产物的过程。这一主张重新界定了成功的标准；它能否改善实际结果，仍有待实证检验。", "function": "提出核心论点", "logic": "针对上一段指出的标准缺口，提出以明确需求核验补充完成状态的方案。", "critique": "清楚区分规范性主张和效果判断，避免把合理的设计建议直接当作已经证实的性能提升。仍需说明过程检查的具体边界。", "tone": "thesis", "highlights": [{"category":"thesis","quote":"a workflow should verify explicit user requirements before declaring success"}]}}
+      ]
+    },
+    {
+      "en": "2. Reasoning and Evaluation", "zh": "推理与评估方案", "logic": "用逻辑反例说明必要性，再提出尚未执行的检验方法。",
+      "paragraphs": [
+        {"en": "Consider an illustrative requirement: compare two alternatives and cite the source of each estimate. A document containing only one alternative is sufficient to refute the rule that file creation alone proves task success. This is logical evidence about that rule, not measured evidence about the frequency of failure.",
+         "note": {"zh": "设想一个要求：比较两种方案，并注明每项估算的来源。如果文档只介绍一种方案，它就足以反驳“只要创建了文件，任务就已经成功”的判定规则。这里提供的是针对该规则的逻辑证据，而非关于失败频率的测量数据。", "function": "提供逻辑证据", "logic": "以满足前提但不满足结论的反例，揭示原有判定规则并不充分。", "critique": "反例具有明确的逻辑效力，作者也主动限定证据范围。它只能支持增加核验的必要性，不能证明某种核验方法最优。", "tone": "evidence", "highlights": [{"category":"evidence","quote":"A document containing only one alternative is sufficient to refute the rule"}]}},
+        {"en": "A future evaluation could assign the same tasks to workflows with and without requirement checks. It should record requirement coverage, false acceptance, and added latency, using a fixed rubric and independent review. These are proposed measurements. No sample size, accuracy gain, or statistical significance is claimed here.",
+         "note": {"zh": "未来可以将相同任务分别交给带有需求检查和不带检查的工作流程。在采用固定评价标准和独立复核的前提下，记录需求覆盖率、错误验收情况以及新增耗时。这些只是拟议的测量指标；本文并未声称已有样本规模、准确率提升或统计显著性结果。", "function": "说明方法与检验路径", "logic": "将概念主张转化为可供后续验证的比较设计，为效果判断保留检验入口。", "critique": "同时考虑收益与时间成本，避免只选择有利指标。但任务抽样、盲法和评审者一致性仍待明确，当前不能据此作出因果结论。", "tone": "method", "highlights": [{"category":"method","quote":"using a fixed rubric and independent review"}]}}
+      ]
+    },
+    {
+      "en": "3. Objection and Conclusion", "zh": "异议处理与结论", "logic": "承认检查本身的局限，将结论收束为可检验且有条件的设计原则。",
+      "paragraphs": [
+        {"en": "An objection is that verification adds cost and may repeat the generator's mistakes. That concern limits the proposal: checks should target explicit, consequential requirements, and ambiguous judgments should remain visible for human review. Independent checking is a design objective, not a guarantee of independent errors.",
+         "note": {"zh": "一种异议是，核验会增加成本，而且可能重复生成器的错误。这一担忧为方案划定了边界：检查应聚焦于明确且影响较大的需求，对含混判断则应保留可供人工复核的记录。独立核验是一项目标，并不保证两者的错误彼此独立。", "function": "回应异议并限定主张", "logic": "正面承认成本和相关错误风险，将普遍核查收窄为有重点、可复核的检查。", "critique": "回应改变了方案适用范围，属于实质性让步。不过，哪些需求足够重要、怎样避免相关错误，仍需操作性标准。", "tone": "counter", "highlights": [{"category":"counter","quote":"verification adds cost and may repeat the generator's mistakes"}]}},
+        {"en": "The argument therefore supports a modest conclusion: completion status is an insufficient definition of task success, and explicit requirement checks are a testable complement. The strongest step is the counterexample to a universal rule. The weakest step is the untested transition from a better definition to better practical outcomes.",
+         "note": {"zh": "因此，本文支持一个有限结论：完成状态不足以定义任务成功，而明确的需求检查可以作为一种有待检验的补充。论证最有力的环节，是以反例推翻过强的普遍规则；最薄弱的环节，则是尚未证实从改进定义到改善实际效果的过渡。", "function": "总结与评价证据边界", "logic": "回扣问题和主张，同时区分逻辑上已成立的部分与实践上仍需验证的部分。", "critique": "结论与现有证据基本匹配，没有把方法设想写成实验结果。若要进一步主张实际效用，还须补充比较实验。", "tone": "thesis", "highlights": [{"category":"thesis","quote":"completion status is an insufficient definition of task success"}]}}
+      ]
+    }
+  ],
+  "outline": {
+    "title_zh": "从完成到核验：一个自制教学论证示例",
+    "core_claim": "工作流程在宣布成功前应核对明确需求，而这种检查的实际收益仍须检验。",
+    "chain": [
+      {"stage":"问题","text":"文件已经生成，仍可能缺少用户要求的内容。","paragraph_ids":["p001"]},
+      {"stage":"论点","text":"成功判定应加入明确需求核验。","paragraph_ids":["p002"]},
+      {"stage":"证据","text":"逻辑反例否定“创建文件即成功”；比较实验尚属建议。","paragraph_ids":["p003","p004"]},
+      {"stage":"让步与反驳","text":"承认检查成本与相关错误，收窄到重要需求并保留人工复核。","paragraph_ids":["p005"]},
+      {"stage":"结论","text":"核验是可检验的补充原则，其实际效果尚未证实。","paragraph_ids":["p006"]}
+    ],
+    "strongest":{"text":"反例直接否定过强的普遍规则，逻辑指向清楚。","paragraph_ids":["p003"]},
+    "weakest":{"text":"需求核验改善实践结果的因果链尚缺少实证支持。","paragraph_ids":["p004","p006"]},
+    "evidence_boundary":"此示例由 High_SC 项目自制，英文、译文和批注均为教学材料；没有真实论文、数据集或实证实验。"
+  }
+}

@@ -1,0 +1,52 @@
+// Run against: python tests/serve_ui_test.py (isolated data and mock model).
+const { chromium } = require('playwright');
+const fs = require('fs'), path = require('path'), assert = require('node:assert/strict');
+const root = path.resolve(__dirname, '..'), out = path.join(__dirname, 'artifacts/browser');
+fs.mkdirSync(out, { recursive: true });
+const connection = JSON.parse(fs.readFileSync(path.join(__dirname, 'artifacts/ui-endpoint.json'), 'utf8'));
+const base = process.env.HIGHSC_TEST_URL || 'http://127.0.0.1:8695';
+(async () => {
+  const browser = await chromium.launch({headless:true,...(process.env.HIGHSC_BROWSER_CHANNEL?{channel:process.env.HIGHSC_BROWSER_CHANNEL}:{})});
+  try {
+    const page = await browser.newPage({viewport:{width:1440,height:1050}}), errors = [];
+    page.on('pageerror', error=>errors.push(error.message));
+    await page.goto(base); await page.locator('#drop-zone').waitFor(); await page.evaluate(()=>document.fonts.ready);
+    await page.screenshot({path:path.join(out,'workspace.png'),fullPage:true});
+    await page.setViewportSize({width:390,height:844});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'mobile workspace overflow');
+    await page.screenshot({path:path.join(out,'mobile.png'),fullPage:true});
+    await page.locator('a[data-page=settings]').click();
+    await page.locator('[name=api_style]').selectOption('chat');
+    await page.locator('[name=base_url]').fill(connection.base_url+'/custom?api-version=1');
+    await page.locator('[name=model]').fill('mock-reader'); await page.locator('[name=api_key]').fill('ui-test-only-key');
+    await page.locator('summary').click();
+    await page.locator('[name=endpoint_mode]').selectOption('exact');
+    await page.locator('[name=auth_mode]').selectOption('api-key');
+    await page.locator('[name=token_field]').selectOption('max_completion_tokens');
+    await page.locator('[name=extra_headers]').fill('{"X-Gateway-Key":"${API_KEY}"}');
+    await page.locator('#test-settings').click();
+    await page.waitForFunction(()=>document.querySelector('#settings-status').textContent.includes('测试通过'));
+    await page.locator('#save-settings').click();
+    await page.waitForFunction(()=>document.querySelector('#settings-status').textContent.includes('已保存'));
+    assert.equal(await page.locator('[name=extra_headers]').inputValue(),'','headers cleared after save');
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'mobile settings overflow');
+    await page.screenshot({path:path.join(out,'settings-mobile.png'),fullPage:true});
+    await page.setViewportSize({width:1440,height:1050}); await page.screenshot({path:path.join(out,'settings.png'),fullPage:true});
+    await page.locator('a[data-page=workspace]').click();
+    await page.locator('#file-input').setInputFiles(path.join(root,'examples/source.pdf'));
+    await page.locator('.paper-title h1').waitFor({timeout:30000});
+    await page.waitForFunction(()=>document.querySelector('.status-label')?.textContent==='已完成',null,{timeout:60000});
+    const pid = new URL(page.url()).hash.slice('#paper/'.length);
+    const data = await page.evaluate(async id=>(await fetch('/api/papers/'+id)).json(),pid);
+    assert.equal(Object.keys(data.notes).length,data.parsed.paragraphs.length); assert.ok(data.meta.export_ready);
+    await page.screenshot({path:path.join(out,'completed.png'),fullPage:true});
+    const demo = await browser.newPage({viewport:{width:1440,height:1050}});
+    demo.on('pageerror',error=>errors.push(error.message)); await demo.goto(base+'/example'); await demo.evaluate(()=>document.fonts.ready);
+    assert.equal(await demo.locator('.text-pair').count(),6); await demo.screenshot({path:path.join(out,'reader.png')});
+    await demo.setViewportSize({width:390,height:844});
+    assert.equal(await demo.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'mobile reader overflow');
+    await demo.screenshot({path:path.join(out,'reader-mobile.png'),fullPage:true}); assert.deepEqual(errors,[]);
+    fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({ok:true,paragraphs:data.parsed.paragraphs.length,errors},null,2));
+    console.log('Browser checks passed: gateway settings, workflow, desktop/mobile, original demo.');
+  } finally { await browser.close(); }
+})().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1,0 +1,36 @@
+.venv/
+__pycache__/
+.pytest_cache/
+data/
+logs/
+tests/artifacts/
+.env
+.env.*
+!.env.example
+*.log
+*.tmp
+*.pyc
+node_modules/
+playwright-report/
+test-results/
+dist/
+build/
+*.egg-info/
+.impeccable/
+# Local design history and validation reports are not release artifacts.
+/DESIGN.md
+/PRODUCT.md
+/docs/验证记录.md
+/docs/测试结果.json
+/docs/界面检查修正.json
+/docs/官方API配置.md
+/docs/Codex本机模式.md
+/tests/recapture.cjs
+/tests/codex_browser.cjs
+# Only original, redistributable teaching materials are published.
+/examples/*
+!/examples/demo.html
+!/examples/source.pdf
+!/examples/demo_content.json
+!/examples/README.md
+/static/example-preview.provenance.txt
