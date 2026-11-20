@@ -1,5 +1,13 @@
 # High_SC
 
+**Windows 直接使用：[下载 High_SC-v1.1.0-Windows-x64.exe](https://github.com/andijues/High_SC/releases/download/v1.1.0/High_SC-v1.1.0-Windows-x64.exe)**（约 47 MB，无需安装 Python）。
+
+本地现成 EXE 位于项目的 **`dist/High_SC-v1.1.0-Windows-x64.exe`**，双击即可启动。
+
+[下载附使用说明的 Windows ZIP](https://github.com/andijues/High_SC/releases/download/v1.1.0/High_SC-v1.1.0-Windows-x64.zip) · [查看全部 Release 文件](https://github.com/andijues/High_SC/releases/latest)
+
+启动后，在“模型设置”配置接口，在“保存设置”选择 HTML 输出目录。EXE 发布在 GitHub Release；仓库和 Source ZIP 提供源码。
+
 ![High_SC Logo](static/brand/wordmark.png)
 
 **将英文论文 PDF 生成英中对照、逐段论证批注的离线 HTML。**

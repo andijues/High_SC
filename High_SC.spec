@@ -1,4 +1,4 @@
-# Build on Windows: python -m PyInstaller --noconfirm High_SC.spec
+# Build on Windows (prepares bundled licenses): python scripts/package_windows.py
 from PyInstaller.utils.hooks import collect_submodules, collect_all, copy_metadata
 from PyInstaller.utils.win32.versioninfo import VSVersionInfo, FixedFileInfo, StringFileInfo, StringTable, StringStruct, VarFileInfo, VarStruct
 
