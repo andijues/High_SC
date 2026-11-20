@@ -13,6 +13,10 @@ import urllib.request
 
 import httpx
 from mock_provider import MockProvider
+from native_folder_dialog import call_with_dialog_action
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from highsc import __version__
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -34,7 +38,7 @@ def run(executable):
         while time.monotonic()<end:
             try:
                 result=client.get('/api/health').json()
-                if result.get('version')=='1.1.0' and (not tray or result.get('tray_ready')):pid=result['pid'];return result
+                if result.get('version')==__version__ and (not tray or result.get('tray_ready')):pid=result['pid'];return result
             except (httpx.HTTPError,ValueError):pass
             if process.poll() is not None:raise AssertionError('EXE exited early: '+str(process.returncode))
             time.sleep(.25)
@@ -53,6 +57,11 @@ def run(executable):
         assert 'files-template' in page
         assert client.get('/static/brand/High_SC.ico').status_code==200
         assert client.get('/example').status_code==200
+        dest.mkdir(parents=True,exist_ok=True)
+        selected=call_with_dialog_action(lambda:client.post('/api/output/choose-folder',json={'initial':str(dest)},headers=headers,timeout=30),pid)
+        selected.raise_for_status();assert Path(selected.json()['directory']).resolve()==dest.resolve()
+        cancelled=call_with_dialog_action(lambda:client.post('/api/output/choose-folder',json={'initial':str(dest)},headers=headers,timeout=30),pid,cancel=True)
+        cancelled.raise_for_status();assert cancelled.json()['directory'] is None
         r=client.put('/api/settings',json={'base_url':mock.url,'model':'mock-reader','api_style':'chat','api_key':'exe-smoke-test-key','timeout':30,'retries':0,'batch_size':2},headers=headers);r.raise_for_status()
         r=client.put('/api/output-settings',json={'directory':str(dest),'auto_save':True},headers=headers);r.raise_for_status()
         with (ROOT/'examples/source.pdf').open('rb') as source:r=client.post('/api/papers',files={'file':('original-demo.pdf',source,'application/pdf')},data={'auto_generate':'false'},headers=headers)
@@ -78,7 +87,7 @@ def run(executable):
         assert duplicate.wait(timeout=45)==0
         assert client.get('/api/health').json()['pid']==pid
         stop();tray=start(tray=True);assert tray['tray_ready'];stop()
-        result={'ok':True,'version':'1.1.0','paragraphs':len(doc['notes']),'python_on_path':False,'chinese_exe_path':True,'saved_directory':True,'no_overwrite':True,'restart_persistence':True,'single_instance':True,'tray_ready':True}
+        result={'ok':True,'version':__version__,'native_folder_select':True,'native_folder_cancel':True,'paragraphs':len(doc['notes']),'python_on_path':False,'chinese_exe_path':True,'saved_directory':True,'no_overwrite':True,'restart_persistence':True,'single_instance':True,'tray_ready':True}
         (artifact/'result.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
         print(json.dumps(result))
     finally:

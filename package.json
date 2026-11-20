@@ -1,6 +1,6 @@
 {
   "name": "high-sc",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Optional browser checks for the local High_SC application",
   "scripts": {"test:browser": "node tests/browser_check.cjs"},

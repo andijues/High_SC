@@ -43,3 +43,5 @@ npm run test:browser
 构建后执行 `python tests/smoke_windows_exe.py dist/High_SC.exe`。测试从启动环境的 PATH 中移除 Python，用实际 EXE 验证生成与自选目录、文件不覆盖、中文路径、重启持久化、单实例和托盘。完整构建方式见 [Windows 指南](windows.md)。
 
 这检验内置运行环境和核心流程，不代表已在所有 Windows 版本、杀毒软件或硬件上验证。
+
+EXE 冒烟测试实际调用 Windows 文件夹窗口，自动选择中文目录并取消一次；测试只操作该测试 EXE 自己创建的窗口。它与浏览器模拟测试分开，能发现 ctypes 参数、窗口创建和取消返回值的问题。

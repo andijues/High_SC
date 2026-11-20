@@ -66,7 +66,11 @@ def try_auto_save(source, title, paper_id):
 def choose_folder(initial=''):
     if os.name!='nt':raise ValueError('此平台请直接填写完整目录路径')
     from .windows import choose_folder as dialog
-    return dialog(initial)
+    try:return dialog(initial)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('Windows folder picker failed')
+        raise ValueError('系统文件夹窗口未能打开。请先在“保存文件夹”中手动填写完整路径并保存；详细错误已记录到本机日志。') from None
 
 
 def open_directory(path):

@@ -25,7 +25,9 @@ def choose_folder(initial=''):
     if result not in (0,1):raise ValueError('无法打开系统文件夹窗口，请手动填写路径')
     try:
         display=ctypes.create_unicode_buffer(32768)
-        info=BrowseInfo(None,None,display,'选择 High_SC 的 HTML 保存文件夹',0x51,callback,0,0)
+        # Structure fields require a pointer; function arguments alone allow
+        # implicit conversion of a ctypes Unicode array.
+        info=BrowseInfo(None,None,ctypes.cast(display,wintypes.LPWSTR),'选择 High_SC 的 HTML 保存文件夹',0x51,callback,0,0)
         pidl=shell.SHBrowseForFolderW(ctypes.byref(info))
         if not pidl:return None
         try:

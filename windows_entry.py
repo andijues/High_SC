@@ -14,6 +14,7 @@ import urllib.request
 import webbrowser
 
 from highsc.paths import DATA, ROOT
+from highsc import __version__
 
 
 def health(port):
@@ -45,6 +46,8 @@ def main():
             try:
                 saved=json.loads(runtime.read_text(encoding='utf-8'));current=health(saved['port'])
                 if current and current.get('instance')==identity and current['pid']==saved['pid']:
+                    if current.get('version')!=__version__:
+                        raise RuntimeError('旧版 High_SC 仍在运行。请先右键系统托盘中的旧版图标并退出，再启动新版程序。')
                     if not args.no_browser:webbrowser.open(f"http://127.0.0.1:{saved['port']}")
                     return
             except (OSError,ValueError,KeyError):pass
@@ -72,7 +75,7 @@ def main():
     if not args.no_browser:webbrowser.open(url)
     import pystray
     from PIL import Image
-    from highsc import __version__, output
+    from highsc import output
     from highsc.jobs import ACTIVE
     def open_workbench(icon=None,item=None):webbrowser.open(url)
     def open_exports(icon,item):
