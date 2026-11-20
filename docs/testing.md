@@ -37,3 +37,9 @@ npm run test:browser
 - CI：运行 Windows / Ubuntu 的核心测试；不执行付费 API 或真实 Codex 登录。
 
 测试通过表示对应功能流程符合预期，不代表任意 PDF 的解析或任意模型的学术判断都正确。
+
+## Windows EXE 验证
+
+构建后执行 `python tests/smoke_windows_exe.py dist/High_SC.exe`。测试从启动环境的 PATH 中移除 Python，用实际 EXE 验证生成与自选目录、文件不覆盖、中文路径、重启持久化、单实例和托盘。完整构建方式见 [Windows 指南](windows.md)。
+
+这检验内置运行环境和核心流程，不代表已在所有 Windows 版本、杀毒软件或硬件上验证。

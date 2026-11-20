@@ -50,6 +50,16 @@ async function importPDF(file){
   finally{state.importing=false;$('#file-input').disabled=false;$('#import-small').disabled=false;$('#file-input').value=''}
 }
 
+async function filesPage(){
+  state.selected=null;state.data=null;nav('files');renderLibrary();template('#files-template');
+  const f=$('#files-form'),status=$('#output-status');
+  const show=(text,error=false)=>{status.textContent=text;status.classList.toggle('error-text',error);status.classList.toggle('success-text',!error)};
+  try{const c=await api('/output-settings');f.elements.directory.value=c.directory;f.elements.auto_save.checked=c.auto_save;$('#browse-output').hidden=!c.native_picker}catch(e){show(e.message,true)}
+  f.addEventListener('submit',async e=>{e.preventDefault();const b=$('#save-output-settings');b.disabled=true;try{const c=await api('/output-settings',{method:'PUT',body:{directory:f.elements.directory.value.trim(),auto_save:f.elements.auto_save.checked}});f.elements.directory.value=c.directory;show('保存位置已更新');toast('保存设置已更新')}catch(e){show(e.message,true)}finally{b.disabled=false}});
+  $('#browse-output').addEventListener('click',async()=>{const b=$('#browse-output');b.disabled=true;show('请在系统窗口中选择文件夹…');try{const c=await api('/output/choose-folder',{method:'POST',body:{initial:f.elements.directory.value}});if(c.directory){f.elements.directory.value=c.directory;show('已选择文件夹，点击“保存设置”生效')}else show('已取消选择')}catch(e){show(e.message,true)}finally{b.disabled=false}});
+  $('#open-output').addEventListener('click',async()=>{try{await api('/output/open-folder',{method:'POST'});show('已打开保存的文件夹')}catch(e){show(e.message,true)}});
+}
+
 function settingsPage(){
   state.selected=null;state.data=null;nav('settings');renderLibrary();template('#settings-template');
   const f=$('#settings-form'),c=state.settings;
@@ -94,7 +104,7 @@ async function loadPaper(id){
 function renderPaper(){
   const d=state.data;if(!d)return;const m=d.meta;
   const ready=m.export_ready,active=busy(m);
-  $('#content').innerHTML=`<section class="paper-workspace"><div class="paper-heading"><div class="paper-title"><h1 lang="en">${E(m.title)}</h1><p>${m.pages} 页 · ${d.parsed.paragraphs.length} 段正文 · ${d.parsed.assets.length} 项图表 · ${d.parsed.references.length} 条参考文献</p></div><a class="source-link" target="_blank" rel="noopener" href="/api/papers/${m.id}/source">查看原始 PDF ↗</a></div><div class="paper-actions">${active?`<button class="button secondary" data-action="pause" ${m.state==='pausing'?'disabled':''}>${m.state==='pausing'?'等待当前请求结束':'暂停生成'}</button>`:`<button class="button primary" data-action="generate">${m.state==='completed'?'检查并继续':m.completed?'继续生成':'开始生成'}</button>`}<button class="button secondary" data-action="export" ${active?'disabled':''}>更新 HTML</button>${ready?`<a class="button secondary" href="/api/papers/${m.id}/html" target="_blank" rel="noopener">预览成品 ↗</a><a class="button secondary" href="/api/papers/${m.id}/html?download=1">下载 HTML</a>`:''}${status(m)}</div><nav class="paper-tabs" aria-label="论文工作区">${[['progress','生成进度'],['notes','段落校对'],['assets','图表'],['outline','论证总览']].map(([k,v])=>`<button data-tab="${k}" class="${state.tab===k?'active':''}">${v}</button>`).join('')}</nav><div id="paper-tab-content"></div></section>`;
+  $('#content').innerHTML=`<section class="paper-workspace"><div class="paper-heading"><div class="paper-title"><h1 lang="en">${E(m.title)}</h1><p>${m.pages} 页 · ${d.parsed.paragraphs.length} 段正文 · ${d.parsed.assets.length} 项图表 · ${d.parsed.references.length} 条参考文献</p></div><a class="source-link" target="_blank" rel="noopener" href="/api/papers/${m.id}/source">查看原始 PDF ↗</a></div><div class="paper-actions">${active?`<button class="button secondary" data-action="pause" ${m.state==='pausing'?'disabled':''}>${m.state==='pausing'?'等待当前请求结束':'暂停生成'}</button>`:`<button class="button primary" data-action="generate">${m.state==='completed'?'检查并继续':m.completed?'继续生成':'开始生成'}</button>`}<button class="button secondary" data-action="export" ${active?'disabled':''}>更新 HTML</button>${ready?`<a class="button secondary" href="/api/papers/${m.id}/html" target="_blank" rel="noopener">预览成品 ↗</a><a class="button secondary" href="/api/papers/${m.id}/html?download=1">浏览器下载</a><button class="button secondary" data-action="save-output">保存到指定目录</button>`:''}${status(m)}</div>${m.saved_path?`<p class="saved-file">已保存：<span>${E(m.saved_path)}</span> <a href="#files">修改目录</a></p>`:''}${m.save_error?`<p class="job-error">HTML 已生成，写入指定目录失败：${E(m.save_error)}。<a href="#files">修改保存设置</a>后重试，或使用浏览器下载。</p>`:''}<nav class="paper-tabs" aria-label="论文工作区">${[['progress','生成进度'],['notes','段落校对'],['assets','图表'],['outline','论证总览']].map(([k,v])=>`<button data-tab="${k}" class="${state.tab===k?'active':''}">${v}</button>`).join('')}</nav><div id="paper-tab-content"></div></section>`;
   renderTab();
 }
 function renderTab(){
@@ -161,6 +171,7 @@ async function action(name,button){
       if(name==='regenerate')state.drafts.delete(draftKey());
       await api(`/papers/${state.selected}/generate`,{method:'POST',body:opts});state.tab='progress';
     }else if(name==='pause')await api(`/papers/${state.selected}/pause`,{method:'POST'});
+    else if(name==='save-output'){const result=await api(`/papers/${state.selected}/save-output`,{method:'POST'});toast('已保存到：'+result.path)}
     else if(name==='export'){await api(`/papers/${state.selected}/export`,{method:'POST'});toast('HTML 已更新，可以预览或下载')}
     state.data=await api('/papers/'+state.selected);renderPaper();await refreshLibrary();
   }catch(e){toast(e.message,true)}finally{if(button&&button.isConnected)button.disabled=false}
@@ -168,7 +179,7 @@ async function action(name,button){
 
 async function route(){
   const hash=location.hash.slice(1)||'workspace';
-  if(hash==='settings')settingsPage();else if(hash==='help'){state.selected=null;state.data=null;nav('help');renderLibrary();template('#help-template')}
+  if(hash==='files')await filesPage();else if(hash==='settings')settingsPage();else if(hash==='help'){state.selected=null;state.data=null;nav('help');renderLibrary();template('#help-template')}
   else if(/^paper\/[a-f0-9]{32}$/.test(hash))await loadPaper(hash.slice(6));else welcome();
 }
 document.addEventListener('click',async e=>{

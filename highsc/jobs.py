@@ -8,6 +8,7 @@ from datetime import datetime
 from .analysis import annotate_assets, annotate_batch, make_outline
 from .provider import ModelClient, ModelError
 from .renderer import audit_document, render_html
+from .output import try_auto_save
 from .storage import LOCK, PAPERS, atomic_json, load_config, paper_dir, read_json
 
 EXECUTOR=ThreadPoolExecutor(max_workers=1,thread_name_prefix="highsc")
@@ -148,7 +149,8 @@ def run(pid,cfg,cancel,only_ids=None):
         issues=audit_document(parsed,notes)
         atomic_json(folder/'review.json',issues)
         path=render_html(folder,parsed,outline,notes,cfg['model'])
-        log(folder,'生成完成，可预览、编辑或下载 HTML',state='completed',stage='completed',completed=total,total=total,error='',export_ready=True,review_count=len(issues),export_bytes=path.stat().st_size,model=cfg['model'])
+        saved=try_auto_save(path,parsed['title'],pid)
+        log(folder,'生成完成，可预览、编辑或下载 HTML',state='completed',stage='completed',completed=total,total=total,error='',export_ready=True,review_count=len(issues),export_bytes=path.stat().st_size,model=cfg['model'],**saved)
     except Paused:
         log(folder,'已暂停，可继续生成；已完成内容保留',state='paused',stage='paused')
     except Exception as exc:

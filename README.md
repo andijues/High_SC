@@ -1,5 +1,7 @@
 # High_SC
 
+![High_SC Logo](static/brand/wordmark.png)
+
 **将英文论文 PDF 生成英中对照、逐段论证批注的离线 HTML。**
 
 A local academic reading workbench: English–Chinese translation, grounded highlights, and paragraph-level argument analysis in a single self-contained HTML file.
@@ -20,7 +22,15 @@ High_SC 在本机解析和保存论文，调用你选择的大模型完成翻译
 
 ## 快速开始
 
-### Windows
+### Windows EXE（无需 Python）
+
+从 [Release](https://github.com/andijues/High_SC/releases/latest) 下载 Windows x64 EXE 或 ZIP，双击 EXE 即可打开工作台。右键系统托盘图标可打开目录或退出程序。模型 API 需自行配置；Codex 模式仍需本机安装并登录官方 CLI。
+
+顶部“保存设置”可独立选择 HTML 目录，并开启自动保存；生成后也可手动点击“保存到指定目录”。同名结果会编号，保留已有文件。“浏览器下载”使用浏览器自身的目录设置。
+
+使用、数据位置与构建说明见 [Windows 指南](docs/windows.md)。
+
+### Windows 源码运行
 
 需要 **Python 3.11+**，推荐 3.11 或更新版本。首次安装需要网络。
 
@@ -91,14 +101,14 @@ codex login status
 
 ## 数据与隐私
 
-- 原始 PDF、解析内容、生成进度和导出结果位于 `data/papers/<论文编号>/`；配置位于 `data/settings.json`。
+- 原始 PDF、解析内容、生成进度和导出结果位于 `data/papers/<论文编号>/`；配置位于 `data/settings.json`。EXE 版的数据根目录为 `%LOCALAPPDATA%/High_SC/`，源码版为项目下的 `data/`；HTML 输出目录独立设置。
 - Windows 使用当前账户的 DPAPI 加密密钥和自定义请求头。其他平台采用权限为 `0600` 的本地配置，**不提供系统级加密**。不要把配置交给他人。
 - 调用模型时，提取的论文文本、图表文字和上下文会发送到你配置的服务。请自行确认渠道可信度及其数据处理规则。
 - 导出 HTML 包含原始 PDF。分享前应确认原论文的分享权限。
 - 服务仅监听本机，带有请求来源和会话校验；不是供公网部署的多人服务。
 - `data/`、日志、密钥、本地测试产物及私人论文均被 Git 忽略。本仓库不包含登录令牌或用户论文。
 
-备份 `data/` 可保留任务；Windows 密钥绑定当前账户，换机器或用户后请重新填写。升级程序时保留 `data/`，重新安装依赖，并先暂停正在处理的任务。
+备份对应的数据目录可保留任务；Windows 密钥绑定当前账户，换机器或用户后请重新填写。升级程序时保留 `data/`，重新安装依赖，并先暂停正在处理的任务。
 
 ## 支持范围
 

@@ -20,3 +20,7 @@ FastAPI, Starlette, Uvicorn, HTTPX, Pydantic, python-multipart and their depende
 ## Example content
 
 `examples/demo_content.json` and its generated PDF / HTML are original teaching materials created for High_SC and distributed under this project's license. They do not reproduce a third-party research paper or report actual experimental data. User-imported materials are not part of this repository.
+
+## Windows distribution
+
+The EXE includes CPython (PSF license), Pillow (MIT-CMU), pystray (LGPL v3), and the PyInstaller bootloader (GPL with its distribution exception). The build collects the actual installed runtime license notices into the EXE and portable ZIP under `licenses/`. See `requirements-build.txt` for versions and `scripts/package_windows.py` for the reproducible build. High_SC source and build instructions are supplied in the same release.

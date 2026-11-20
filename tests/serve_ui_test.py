@@ -9,9 +9,12 @@ ROOT=Path(__file__).resolve().parents[1]
 ARTIFACTS=ROOT/'tests/artifacts'
 ARTIFACTS.mkdir(exist_ok=True)
 os.environ['HIGHSC_DATA_DIR']=str(ARTIFACTS/('ui-data-'+uuid.uuid4().hex))
+os.environ['HIGHSC_OUTPUT_DIR']=str(Path(os.environ['HIGHSC_DATA_DIR'])/'exports')
 os.environ['NO_PROXY']='127.0.0.1,localhost'
 sys.path.insert(0,str(ROOT))
 from mock_provider import MockProvider
+from highsc import output
+output.choose_folder=lambda initial:os.environ['HIGHSC_OUTPUT_DIR']
 import uvicorn
 
 if __name__=='__main__':

@@ -37,7 +37,7 @@ def short_pdf():
 class WorkflowTest(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();data=Path(self.temp.name)/'data';papers=data/'papers';papers.mkdir(parents=True)
-        self.patches=[patch.object(storage,'DATA',data),patch.object(storage,'PAPERS',papers),patch.object(jobs,'PAPERS',papers),patch.object(server,'PAPERS',papers),patch.dict(os.environ,{'NO_PROXY':'127.0.0.1,localhost'})]
+        self.patches=[patch.object(storage,'DATA',data),patch.object(storage,'PAPERS',papers),patch.object(jobs,'PAPERS',papers),patch.object(server,'PAPERS',papers),patch.dict(os.environ,{'NO_PROXY':'127.0.0.1,localhost','HIGHSC_OUTPUT_DIR':str(Path(self.temp.name)/'exports')})]
         for p in self.patches:p.start()
         self.client=TestClient(server.app);self.headers={'X-HighSC-Token':server.TOKEN}
         self.mock=MockProvider()
@@ -73,6 +73,29 @@ class WorkflowTest(unittest.TestCase):
             c={**storage.DEFAULT_CONFIG,**self.settings(style)}
             self.assertTrue(ModelClient(c).test()['ok'])
         self.assertEqual(parse_json('```json\n{"ok":true}\n```'),{'ok':True})
+    def test_output_directory_independent_from_model_settings(self):
+        self.save_settings();dest=Path(self.temp.name)/'中文 目录'/'exports'
+        r=self.client.put('/api/output-settings',json={'directory':str(dest),'auto_save':False},headers=self.headers)
+        self.assertEqual(r.status_code,200,r.text);self.assertTrue(dest.is_dir())
+        self.assertEqual(storage.load_config()['api_key'],'integration-test-secret')
+        self.assertEqual(self.client.get('/api/output-settings').json()['directory'],str(dest.resolve()))
+        self.assertEqual(self.client.put('/api/output-settings',json={'directory':'relative/path'} ,headers=self.headers).status_code,400)
+        self.assertEqual(self.client.put('/api/output-settings',json={'directory':str(dest)}).status_code,403)
+        with patch.object(server.output,'choose_folder',return_value=str(dest)):
+            self.assertEqual(self.client.post('/api/output/choose-folder',json={},headers=self.headers).json()['directory'],str(dest))
+    def test_direct_save_never_overwrites_and_generation_survives_save_failure(self):
+        self.save_settings();pid=self.upload();dest=Path(self.temp.name)/'custom exports'
+        self.client.put('/api/output-settings',json={'directory':str(dest),'auto_save':True},headers=self.headers)
+        self.client.post(f'/api/papers/{pid}/generate',json={},headers=self.headers)
+        d=self.wait_for(pid,{'completed','failed'});self.assertEqual(d['meta']['state'],'completed')
+        first=Path(d['meta']['saved_path']);self.assertEqual(first.parent,dest.resolve());self.assertTrue(first.exists())
+        first.write_text('User modified this file',encoding='utf-8')
+        r=self.client.post(f'/api/papers/{pid}/save-output',headers=self.headers)
+        self.assertEqual(r.status_code,200,r.text);self.assertNotEqual(r.json()['path'],str(first));self.assertEqual(first.read_text(),'User modified this file')
+        with patch.object(server.output,'save_html',side_effect=PermissionError('directory is read-only')):
+            r=self.client.post(f'/api/papers/{pid}/export',headers=self.headers);self.assertEqual(r.status_code,200,r.text)
+            d=self.client.get('/api/papers/'+pid).json();self.assertTrue(d['meta']['export_ready']);self.assertIn('read-only',d['meta']['save_error'])
+        self.assertEqual(self.client.get(f'/api/papers/{pid}/html').status_code,200)
     def test_xhigh_connection_test_preserves_reasoning_budget(self):
         config={**storage.DEFAULT_CONFIG,**self.settings('responses'),'model':'gpt-6.1-sol','max_tokens':32768,'extra_body':{'reasoning':{'effort':'xhigh'}}}
         self.assertTrue(ModelClient(config).test()['ok'])

@@ -9,8 +9,7 @@ import threading
 from ctypes import wintypes
 from pathlib import Path
 
-ROOT = Path(os.environ.get("HIGHSC_ROOT", Path(__file__).resolve().parents[1])).resolve()
-DATA = Path(os.environ.get("HIGHSC_DATA_DIR", ROOT / "data")).resolve()
+from .paths import ROOT, DATA
 PAPERS = DATA / "papers"
 LOCK = threading.RLock()
 

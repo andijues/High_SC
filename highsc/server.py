@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import secrets
 import uuid
@@ -14,12 +15,13 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import __version__
+from . import output
 from .analysis import validate_annotation
 from .jobs import ACTIVE, list_papers, now, pause, recover_jobs, submit, update_meta
 from .pdf_parser import parse_pdf
 from .provider import ModelClient, ModelError, validate_headers
 from .renderer import audit_document, render_html
-from .storage import LOCK, PAPERS, ROOT, atomic_json, load_config, paper_dir, read_json, save_config
+from .storage import DATA, LOCK, PAPERS, ROOT, atomic_json, load_config, paper_dir, read_json, save_config
 
 TOKEN=secrets.token_urlsafe(32)
 app=FastAPI(title='High_SC',docs_url=None,redoc_url=None,openapi_url=None)
@@ -55,7 +57,33 @@ def home():
 
 
 @app.get('/api/health')
-def health():return {'app':'High_SC','version':__version__,'pid':os.getpid()}
+def health():return {'app':'High_SC','version':__version__,'pid':os.getpid(),'instance':hashlib.sha256(str(DATA).encode()).hexdigest()[:16],'tray_ready':bool(getattr(app.state,'tray_ready',False))}
+
+
+class OutputSettings(BaseModel):
+    directory:str=Field(min_length=1,max_length=2000)
+    auto_save:bool=True
+
+
+@app.get('/api/output-settings')
+def output_settings():return {**output.settings(),'native_picker':os.name=='nt'}
+
+
+@app.put('/api/output-settings')
+def put_output_settings(value:OutputSettings):return output.save_settings(value.directory,value.auto_save)
+
+
+class FolderChoice(BaseModel):
+    initial:str=Field(default='',max_length=2000)
+
+
+@app.post('/api/output/choose-folder')
+def choose_output_folder(value:FolderChoice):return {'directory':output.choose_folder(value.initial)}
+
+
+@app.post('/api/output/open-folder')
+def open_output_folder():
+    output.open_directory(output.settings()['directory']);return {'ok':True}
 
 
 class Settings(BaseModel):
@@ -191,8 +219,20 @@ def export(pid:str):
         if any(not a.get('zh') for a in parsed['assets']):raise ValueError('图表说明尚未完成，请继续生成后再导出')
         path=render_html(folder,parsed,outline,notes)
         issues=audit_document(parsed,notes);atomic_json(folder/'review.json',issues)
-        update_meta(folder,export_ready=True,export_bytes=path.stat().st_size,review_count=len(issues),message='HTML 已更新')
+        saved=output.try_auto_save(path,parsed['title'],pid)
+        update_meta(folder,export_ready=True,export_bytes=path.stat().st_size,review_count=len(issues),message='HTML 已更新',**saved)
     return {'url':f'/api/papers/{pid}/html','download':f'/api/papers/{pid}/html?download=1','bytes':path.stat().st_size}
+
+
+@app.post('/api/papers/{pid}/save-output')
+def save_output(pid:str):
+    folder=paper_dir(pid)
+    with LOCK:
+        if not read_json(folder/'meta.json',{}).get('export_ready'):raise ValueError('请先完成生成或更新 HTML')
+        try:path=output.save_html(folder/'annotated.html',read_json(folder/'parsed.json')['title'],pid)
+        except OSError as exc:raise ValueError('无法保存到指定目录：'+str(exc)) from None
+        update_meta(folder,saved_path=path,save_error='')
+    return {'path':path}
 
 
 @app.get('/api/papers/{pid}/html')
