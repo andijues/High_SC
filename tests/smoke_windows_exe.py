@@ -80,14 +80,30 @@ def run(executable):
         r=client.post(f'/api/papers/{paper}/save-output',headers=headers);r.raise_for_status();assert Path(r.json()['path'])!=saved
         assert hashlib.sha256(saved.read_bytes()).hexdigest()==first_hash
         assert 'exe-smoke-test-key' not in saved.read_text(encoding='utf-8')
+        # The same PDF is imported under a new paper ID. The actual frozen
+        # application must restore complete results without another model call.
+        before=len(mock.calls)
+        with (ROOT/'examples/source.pdf').open('rb') as source:r=client.post('/api/papers',files={'file':('same-demo.pdf',source,'application/pdf')},headers=headers)
+        r.raise_for_status();duplicate_id=r.json()['id']
+        client.post(f'/api/papers/{duplicate_id}/generate',json={},headers=headers).raise_for_status()
+        end=time.monotonic()+30
+        while time.monotonic()<end:
+            cached=client.get('/api/papers/'+duplicate_id).json()
+            if cached['meta']['state'] in {'completed','failed'}:break
+            time.sleep(.1)
+        assert cached['meta']['state']=='completed'
+        assert cached['meta']['optimization']['requests']==0 and len(mock.calls)==before
+        assert cached['notes']==doc['notes']
+        client.put('/api/settings',json={'api_style':'codex','model':'gpt-6.1-sol','codex_effort':'xhigh'},headers=headers).raise_for_status()
         stop();start()
+        pinned=client.get('/api/settings').json();assert pinned['model']=='gpt-6.1-sol' and pinned['codex_effort']=='xhigh'
         assert client.get('/api/papers/'+paper).json()['meta']['state']=='completed'
         assert client.get('/api/output-settings').json()['directory']==str(dest.resolve())
         duplicate=subprocess.Popen([str(binary),'--no-browser','--no-tray','--port',str(port)],env=env,creationflags=subprocess.CREATE_NO_WINDOW)
         assert duplicate.wait(timeout=45)==0
         assert client.get('/api/health').json()['pid']==pid
         stop();tray=start(tray=True);assert tray['tray_ready'];stop()
-        result={'ok':True,'version':__version__,'native_folder_select':True,'native_folder_cancel':True,'paragraphs':len(doc['notes']),'python_on_path':False,'chinese_exe_path':True,'saved_directory':True,'no_overwrite':True,'restart_persistence':True,'single_instance':True,'tray_ready':True}
+        result={'ok':True,'version':__version__,'native_folder_select':True,'native_folder_cancel':True,'paragraphs':len(doc['notes']),'cache_reimport_requests':0,'python_on_path':False,'chinese_exe_path':True,'saved_directory':True,'no_overwrite':True,'restart_persistence':True,'single_instance':True,'tray_ready':True}
         (artifact/'result.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
         print(json.dumps(result))
     finally:

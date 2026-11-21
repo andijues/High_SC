@@ -23,7 +23,7 @@ def fixture_response(payload):
 class MockProvider:
     def __init__(self,delay=0):
         self.calls=[];self.requests=[];self.request_meta=[];self.delay=delay;self.fail_annotation=False
-        self.error_status=0;self.error_text='';self.error_json=None
+        self.error_status=0;self.error_text='';self.error_json=None;self.transform=None;self.usage=None
         owner=self
         class Handler(BaseHTTPRequestHandler):
             def do_POST(self):
@@ -39,10 +39,13 @@ class MockProvider:
                 if owner.delay:time.sleep(owner.delay)
                 if owner.fail_annotation and payload['task']=='annotate':
                     self.send_response(503);self.end_headers();self.wfile.write(b'test outage');return
-                text=json.dumps(fixture_response(payload),ensure_ascii=False)
+                result=fixture_response(payload)
+                if owner.transform:result=owner.transform(payload,result)
+                text=json.dumps(result,ensure_ascii=False)
                 if urlsplit(self.path).path.endswith('/messages'):result={'content':[{'type':'text','text':text}],'stop_reason':'end_turn','usage':{'input_tokens':12,'output_tokens':30}}
                 elif urlsplit(self.path).path.endswith('/responses'):result={'status':'completed','output':[{'type':'message','content':[{'type':'output_text','text':text}]}],'usage':{'input_tokens':12,'output_tokens':30}}
                 else:result={'choices':[{'message':{'content':text},'finish_reason':'stop'}],'usage':{'prompt_tokens':12,'completion_tokens':30}}
+                if owner.usage is not None:result['usage']=owner.usage
                 body=json.dumps(result,ensure_ascii=False).encode();self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body)
             def log_message(self,*args):pass
         self.server=ThreadingHTTPServer(('127.0.0.1',0),Handler)

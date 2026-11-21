@@ -13,7 +13,7 @@ class ModelError(RuntimeError):
 
 
 class OutputTooLong(ModelError):
-    pass
+    batch_too_large=True
 
 
 def parse_json(text: str):
@@ -103,20 +103,28 @@ def redact(cfg, text):
 
 
 class ModelClient:
-    def __init__(self, config, usage_callback=None, cancel_check=None):
+    def __init__(self, config, usage_callback=None, cancel_check=None, request_callback=None):
         self.config = config
         self.usage_callback = usage_callback or (lambda _: None)
         self.cancel_check = cancel_check or (lambda: None)
+        self.request_callback = request_callback or (lambda _: None)
         validate_connection(config)
 
     def request(self, system, payload, expect_json=True, small=False):
         cfg = self.config
         style = cfg["api_style"]
+        content = json.dumps(payload, ensure_ascii=False) if not isinstance(payload, str) else payload
+        event={'task':payload.get('task','') if isinstance(payload,dict) else '',
+               'input_chars':len(system)+len(content),
+               'paragraphs':len(payload.get('paragraphs',[])) if isinstance(payload,dict) else 0,
+               'context_chars':len(json.dumps(payload.get('global_outline',{}),ensure_ascii=False)) if isinstance(payload,dict) else 0}
         if style=='codex':
             from .codex_client import request
+            self.request_callback(event)
+            if cfg.get('adaptive_batching',True) and event['task']=='annotate' and event['paragraphs']>4:
+                cfg={**cfg,'timeout':min(1800,int(cfg['timeout']*min(2,event['paragraphs']/4)))}
             return request(cfg,system,payload,expect_json,self.usage_callback,self.cancel_check)
         headers = request_headers(cfg)
-        content = json.dumps(payload, ensure_ascii=False) if not isinstance(payload, str) else payload
         reasoning_requested = bool(cfg.get('extra_body', {}).get('reasoning') or cfg.get('extra_body', {}).get('reasoning_effort'))
         # Reasoning tokens share the output budget. A 300-token probe can be
         # truncated before emitting JSON even when credentials/model are valid.
@@ -153,6 +161,7 @@ class ModelClient:
             self.cancel_check()
             try:
                 with httpx.Client(timeout=httpx.Timeout(cfg["timeout"], connect=min(30,cfg["timeout"])), proxy=cfg.get("proxy") or None, follow_redirects=False) as client:
+                    self.request_callback(event)
                     response = client.post(url, headers=headers, json=body)
                 if response.status_code >= 400 or 300 <= response.status_code < 400:
                     detail = redact(cfg, response.text)[:900]

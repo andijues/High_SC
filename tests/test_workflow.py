@@ -34,7 +34,7 @@ def short_pdf():
     result=d.tobytes();d.close();return result
 
 
-class WorkflowTest(unittest.TestCase):
+class WorkflowFixture(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();data=Path(self.temp.name)/'data';papers=data/'papers';papers.mkdir(parents=True)
         self.patches=[patch.object(storage,'DATA',data),patch.object(storage,'PAPERS',papers),patch.object(jobs,'PAPERS',papers),patch.object(server,'PAPERS',papers),patch.dict(os.environ,{'NO_PROXY':'127.0.0.1,localhost','HIGHSC_OUTPUT_DIR':str(Path(self.temp.name)/'exports')})]
@@ -62,6 +62,8 @@ class WorkflowTest(unittest.TestCase):
             if d['meta']['state'] in states and pid not in jobs.ACTIVE:return d
             time.sleep(.04)
         self.fail('Job did not reach expected state')
+
+class WorkflowTest(WorkflowFixture):
     def test_secret_and_local_request_boundaries(self):
         r=self.save_settings();self.assertNotIn('integration-test-secret',r.text);self.assertNotIn('integration-test-secret',storage.read_json(storage.DATA/'settings.json')['api_key_protected'])
         self.assertEqual(storage.load_config()['api_key'],'integration-test-secret')

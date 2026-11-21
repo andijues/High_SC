@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, ValidationError
 
 from .provider import ModelError
+from .cache import digest
 
 TONE = Literal["thesis", "term", "evidence", "concession", "method"]
 SYSTEM = """You are an expert academic translator and argument analyst for a Chinese graduate student.
@@ -86,6 +87,9 @@ def make_outline(client, parsed, checkpoint, progress):
     text = outline_payload(parsed)
     size = sum(len(p["text"]) for p in text)
     limit = client.config["context_chars"]
+    signature=digest({'paragraphs':text,'limit':limit})
+    if checkpoint.get('chunk_signature')!=signature:
+        checkpoint['chunk_summaries']=[];checkpoint['chunk_signature']=signature
     summaries = checkpoint.setdefault("chunk_summaries", [])
     if size > limit:
         groups=[];group=[];length=0
@@ -106,8 +110,12 @@ def make_outline(client, parsed, checkpoint, progress):
     schema={"title_zh":"中文论文标题","core_claim":"一句话核心主张","chain":[{"stage":"问题/论点/证据/让步与反驳/结论","text":"中文说明","paragraph_ids":["p0001"]}],"strongest":{"text":"最强论证及原因","paragraph_ids":[]},"weakest":{"text":"最弱论证及原因，承认不确定性","paragraph_ids":[]},"evidence_boundary":"已测结果与建议的边界","sections":[{"id":"s00","zh":"中文节标题","logic":"该节的论证路线"}],"glossary":[{"en":"term","zh":"统一译法"}]}
     progress("分析全文论证结构")
     result=client.request(SYSTEM,{"task":"outline","instruction":"Build a whole-paper argument map grounded only in supplied text. chain must have exactly five stages. IDs must exist. Distinguish absent counterarguments from explicit rebuttals. Explain weaknesses proportionately. Match every supplied section ID exactly once. Return the schema below.","schema":schema,"title":parsed["title"],"sections":parsed["sections"],**source})
+    return validate_outline(result,parsed)
+
+
+def validate_outline(result,parsed):
     required={"title_zh","core_claim","chain","strongest","weakest","evidence_boundary","sections","glossary"}
-    if not required <= result.keys() or not isinstance(result["chain"],list) or len(result["chain"])!=5:
+    if not isinstance(result,dict) or not required <= result.keys() or not isinstance(result["chain"],list) or len(result["chain"])!=5:
         raise ModelError("全文分析返回结构不完整，重试可保留已完成的长文摘要")
     valid_ids={p["id"] for p in parsed["paragraphs"]}
     for item in [*result["chain"],result["strongest"],result["weakest"]]:
@@ -118,22 +126,84 @@ def make_outline(client, parsed, checkpoint, progress):
     return result
 
 
+class PartialBatchError(ModelError):
+    def __init__(self, valid, missing):
+        self.valid=valid;self.missing=missing
+        super().__init__('仅需重试未通过校验的段落：'+', '.join(missing))
+
+
+def compact_context(parsed, outline, batch):
+    """Keep all global claims/qualifications/terms; select relevant section roles.
+
+    Abstracts, conclusions and explicit cross-section references retain the
+    complete outline. No source paragraph is summarized or truncated.
+    """
+    if not batch:return outline
+    ids={p['section_id'] for p in batch}
+    source=' '.join(p['en'] for p in batch)
+    headings=' '.join(s.get('en','') for s in parsed['sections'] if s['id'] in ids)
+    if re.search(r'\b(?:sections?|appendix|appendices)\s+(?:\d|[ivxlc]+\b)|\b(?:previous|following|earlier|subsequent)\s+section',source,re.I) or re.search(r'abstract|conclusion|discussion|limitation|summary',headings,re.I):
+        return outline
+    ordered=[s['id'] for s in parsed['sections']]
+    relevant=set(ids)
+    for sid in ids:
+        if sid in ordered:
+            index=ordered.index(sid);relevant.update(ordered[max(0,index-1):index+2])
+    # Preserve other existing/future global fields rather than silently losing
+    # information when the outline schema is extended.
+    return {**outline,'sections':[s for s in outline.get('sections',[]) if s['id'] in relevant]}
+
+
+def paragraph_batches(paragraphs, config):
+    if not config.get('adaptive_batching',True):
+        limit=config['batch_size'];char_limit=12000;output_budget=float('inf')
+    else:
+        limit=8;char_limit=min(8000,max(1600,int(config['context_chars']*.5)))
+        budget=config['max_tokens']
+        for key in ('max_tokens','max_completion_tokens','max_output_tokens'):
+            value=config.get('extra_body',{}).get(key)
+            if isinstance(value,(int,float)) and not isinstance(value,bool) and value>0:budget=min(budget,value)
+        output_budget=float('inf') if config['api_style']=='codex' else budget*.55
+    group=[];chars=0;output=0
+    for p in paragraphs:
+        estimated=len(p['en'])*.6+600
+        boundary=group and group[-1]['section_id']!=p['section_id'] and len(group)>=4
+        if group and (len(group)>=limit or chars+len(p['en'])>char_limit or output+estimated>output_budget or boundary):
+            yield group;group=[];chars=0;output=0
+        group.append(p);chars+=len(p['en']);output+=estimated
+    if group:yield group
+
+
 def annotate_batch(client, parsed, outline, batch):
     ids={p["id"] for p in batch}
     index=next(i for i,p in enumerate(parsed["paragraphs"]) if p["id"]==batch[0]["id"])
     schema={"annotations":[{"id":"原段落ID","zh":"完整意译，不是摘要；保留每个论述与关键数值、引文","function":"段落功能","logic":"联系全文的逻辑角色","critique":"具体论证技巧/有限度的潜在漏洞，勿模板化批评","tone":"thesis|term|evidence|concession|method","highlights":[{"category":"五类之一","quote":"英文原文中逐字连续子串"}],"support_quotes":["批注依据的简短英文原句"]}]}
-    raw=client.request(SYSTEM,{"task":"annotate","schema":schema,"instruction":"Translate ALL supplied paragraphs fully. Provide exactly one annotation per paragraph ID. Relate each paragraph to the whole argument. Select 1-4 short exact English quotes for highlights, <=40% of paragraph. Blue is measured data or cited evidence, not merely a proposed method. Green is concession/qualification/rebuttal; purple is methods. Do not color Chinese. Do not repeat English in output. Preserve all citations and numbers. Critique must separate what the paper proves from what it only proposes.","global_outline":outline,"preceding_context":[p["en"] for p in parsed["paragraphs"][max(0,index-2):index]],"paragraphs":[{"id":p["id"],"section_id":p["section_id"],"text":p["en"]} for p in batch]})
-    items=raw.get("annotations")
+    context=compact_context(parsed,outline,batch)
+    last=next(i for i,p in enumerate(parsed['paragraphs']) if p['id']==batch[-1]['id'])
+    positions={p['id']:i for i,p in enumerate(parsed['paragraphs'])}
+    gaps={j for p in batch for j in (positions[p['id']]-1,positions[p['id']]+1) if index<j<last and parsed['paragraphs'][j]['id'] not in ids}
+    raw=client.request(SYSTEM,{"task":"annotate","schema":schema,"instruction":"Translate ALL supplied paragraphs fully. Provide exactly one annotation per paragraph ID. Relate each paragraph to the whole argument. Select 1-4 short exact English quotes for highlights, <=40% of paragraph. Blue is measured data or cited evidence, not merely a proposed method. Green is concession/qualification/rebuttal; purple is methods. Do not color Chinese. Do not repeat English in output. Preserve all citations and numbers. Critique must separate what the paper proves from what it only proposes. Neighbour context is reference only; annotate only the requested paragraph IDs.","global_outline":context,"preceding_context":[p["en"] for p in parsed["paragraphs"][max(0,index-2):index]],"following_context":[p['en'] for p in parsed['paragraphs'][last+1:last+2]],"intervening_context":[{'id':parsed['paragraphs'][i]['id'],'text':parsed['paragraphs'][i]['en']} for i in sorted(gaps)],"paragraphs":[{"id":p["id"],"section_id":p["section_id"],"text":p["en"]} for p in batch]})
+    items=raw.get("annotations") if isinstance(raw,dict) else None
     if not isinstance(items,list):raise ModelError("模型未返回 annotations 数组")
-    by_id={}
+    by_id={};duplicates=set()
     for item in items:
-        if not isinstance(item,dict) or item.get("id") not in ids or item["id"] in by_id:raise ModelError("模型重复或错配了段落编号")
+        if not isinstance(item,dict) or not isinstance(item.get('id'),str) or item['id'] not in ids:continue
+        if item['id'] in by_id:duplicates.add(item['id'])
         by_id[item["id"]]=item
-    if set(by_id)!=ids:raise ModelError("模型遗漏了本批段落，请减小每批段落数")
-    return [validate_annotation(by_id[p["id"]],p) for p in batch]
+    valid=[];missing=[]
+    for p in batch:
+        try:
+            if p['id'] not in by_id or p['id'] in duplicates:raise ModelError('段落缺失或重复')
+            valid.append(validate_annotation(by_id[p['id']],p))
+        except ModelError:missing.append(p['id'])
+    if missing:raise PartialBatchError(valid,missing)
+    return valid
 
 
-def annotate_assets(client, assets, outline):
+def annotate_assets(client, assets, outline, parsed=None):
+    if parsed:
+        linked={a.get('after') for a in assets};batch=[p for p in parsed['paragraphs'] if p['id'] in linked]
+        if batch:outline=compact_context(parsed,outline,batch)
     raw=client.request(SYSTEM,{"task":"assets","instruction":"Translate each caption and explain its argument role using the caption, extracted figure/table text, and global paper context. Extracted text order can be imperfect. Do not invent values or trends that are not unambiguously supported. When pixels are necessary but unavailable, state the limit. Return {assets:[{id,zh,function,logic,critique,tone}]}. Every input ID exactly once.","global_outline":outline,"assets":[{"id":a["id"],"label":a["label"],"caption":a["en"],"source_text":a.get("source_text","")} for a in assets]})
     result=raw.get("assets",[])
     ids={a["id"] for a in assets}

@@ -86,6 +86,7 @@ DEFAULT_CONFIG = {
     "codex_path": "", "codex_effort": "xhigh",
     "auth_mode": "auto", "endpoint_mode": "auto", "token_field": "auto",
     "extra_headers_protected": "",
+    "adaptive_batching": True,
 }
 
 

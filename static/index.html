@@ -60,9 +60,10 @@
         <label data-api-only>输出长度字段<select name="token_field"><option value="auto">按协议自动选择（推荐）</option><option value="max_tokens">max_tokens</option><option value="max_completion_tokens">max_completion_tokens</option><option value="max_output_tokens">max_output_tokens</option><option value="omit">不发送上限字段</option></select><small>请按渠道文档选择；不发送时由服务端决定，可能增加用量。</small></label>
         <label data-api-only>单次输出 token 上限<input name="max_tokens" type="number" min="512" max="131072"><small>译文被截断时，可提高上限或减小每批段落数。</small></label>
         <label class="full" data-codex-only hidden>Codex 程序路径（可选）<input name="codex_path" placeholder="留空自动寻找已安装的 codex.exe"><small>Codex 管理推理和输出预算；本页的每批段落数、上下文预算与超时仍然有效。</small></label>
-        <label>每批段落数<input name="batch_size" type="number" min="1" max="12"><small>建议 2-4 段；段落长或模型输出短时选 1。</small></label>
+        <label class="checkbox-line full"><input name="adaptive_batching" type="checkbox"> 自动合批：根据段落长度安排每批 1–8 段</label>
+        <label>手动每批段落数<input name="batch_size" type="number" min="1" max="12"><small>关闭自动合批后生效。自动模式会考虑输出预算，超长段落单独处理。</small></label>
         <label>上下文字符预算<input name="context_chars" type="number" min="8000" max="300000"><small>超过预算会先分块分析，再合成全文骨架。</small></label>
-        <label>单次请求超时（秒）<input name="timeout" type="number" min="15" max="1800"></label>
+        <label>单次请求超时（秒）<input name="timeout" type="number" min="15" max="1800"><small>Codex 自动合批超过 4 段时，按批量最多放宽至两倍；关闭自动合批则使用原值。</small></label>
         <label data-api-only>网络失败重试次数<input name="retries" type="number" min="0" max="5"></label>
         <label data-api-only>HTTP 代理（可选）<input name="proxy" placeholder="http://127.0.0.1:7897"><small>留空使用系统环境中的代理配置。</small></label>
         <label class="checkbox-line" data-api-only><input name="json_mode" type="checkbox"> 使用接口原生 JSON 模式</label>

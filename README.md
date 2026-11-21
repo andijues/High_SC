@@ -1,10 +1,10 @@
 # High_SC
 
-**Windows 直接使用：[下载 High_SC-v1.1.1-Windows-x64.exe](https://github.com/andijues/High_SC/releases/download/v1.1.1/High_SC-v1.1.1-Windows-x64.exe)**（约 47 MB，无需安装 Python）。
+**Windows 直接使用：[下载 High_SC-v1.2.0-Windows-x64.exe](https://github.com/andijues/High_SC/releases/download/v1.2.0/High_SC-v1.2.0-Windows-x64.exe)**（约 47 MB，无需安装 Python）。
 
-本地现成 EXE 位于项目的 **`dist/High_SC-v1.1.1-Windows-x64.exe`**，双击即可启动。
+本地现成 EXE 位于项目的 **`dist/High_SC-v1.2.0-Windows-x64.exe`**，双击即可启动。
 
-[下载附使用说明的 Windows ZIP](https://github.com/andijues/High_SC/releases/download/v1.1.1/High_SC-v1.1.1-Windows-x64.zip) · [查看全部 Release 文件](https://github.com/andijues/High_SC/releases/latest)
+[下载附使用说明的 Windows ZIP](https://github.com/andijues/High_SC/releases/download/v1.2.0/High_SC-v1.2.0-Windows-x64.zip) · [查看全部 Release 文件](https://github.com/andijues/High_SC/releases/latest)
 
 启动后，在“模型设置”配置接口，在“保存设置”选择 HTML 输出目录。EXE 发布在 GitHub Release；仓库和 Source ZIP 提供源码。
 
@@ -17,6 +17,12 @@ A local academic reading workbench: English–Chinese translation, grounded high
 ![High_SC 论文精读工作台](docs/screenshots/workspace.png)
 
 High_SC 在本机解析和保存论文，调用你选择的大模型完成翻译与分析。支持官方 API、兼容协议的第三方渠道、本地模型服务，以及复用 ChatGPT 登录的本机 Codex CLI。
+
+## 1.2.0 省额度优化
+
+保留已配置的模型和推理强度，新增同论文缓存复用、失败段落定向补做、默认 1–8 段自适应合批，以及按章节减少重复上下文。完整译文、逐段批注和排版不变。进度页可查看本轮请求和缓存复用数量。
+
+实际验收使用 `gpt-6.1-sol / xhigh`。缓存命中、效果取舍与验证范围见 [优化说明](docs/optimization.md)。旧版完整任务可直接导出；新版身份记录建立后才开始跨导入复用缓存。
 
 ## 阅读效果
 

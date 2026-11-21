@@ -100,6 +100,7 @@ class Settings(BaseModel):
     timeout:int=Field(default=180,ge=15,le=1800)
     max_tokens:int=Field(default=8192,ge=512,le=131072)
     batch_size:int=Field(default=4,ge=1,le=12)
+    adaptive_batching:bool=True
     context_chars:int=Field(default=48000,ge=8000,le=300000)
     retries:int=Field(default=2,ge=0,le=5)
     json_mode:bool=False

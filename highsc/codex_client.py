@@ -21,6 +21,11 @@ class CodexError(ModelError):
     allow_split=False
 
 
+class CodexTimeout(CodexError):
+    allow_split=True
+    batch_too_large=True
+
+
 def child_env():
     env=os.environ.copy()
     for name in ['OPENAI_API_KEY','CODEX_API_KEY','OPENAI_BASE_URL','CODEX_THREAD_ID']:
@@ -117,7 +122,7 @@ def request(config,system,payload,expect_json,usage_callback,cancel_check):
             while proc.poll() is None:
                 cancel_check()
                 if time.monotonic()-started>config['timeout']:
-                    raise CodexError('Codex 调用超时，已停止本次请求；可增加超时或减小每批段落数后继续')
+                    raise CodexTimeout('Codex 调用超时，已停止本次请求；可增加超时或减小每批段落数后继续')
                 time.sleep(.2)
         events=[]
         for line in stdout_path.read_text(encoding='utf-8',errors='replace').splitlines():
